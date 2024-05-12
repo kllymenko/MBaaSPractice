@@ -1,0 +1,29 @@
+* {
+  margin-right: 0;
+  margin-left: 0;
+  padding: 0;
+  list-style: none;
+  outline: none;
+  font-family: 'Roboto', -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
+a {
+  text-decoration: none;
+  color: black;
+}
+
+
+.input-error {
+  margin-top: -5px;
+  font-size: 11px;
+  color: rgb(206, 13, 13);
+}
