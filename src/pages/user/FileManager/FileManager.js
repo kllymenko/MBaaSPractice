@@ -8,6 +8,9 @@ const FileManager = () => {
     const [loading, setLoading] = useState(true);
     const [currentDir, setCurrentDir] = useState('');
     const [newFolderName, setNewFolderName] = useState('');
+    const [shareUsername, setShareUsername] = useState('');
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [fileToShare, setFileToShare] = useState(null);
     const user = Backendless.UserService.currentUser;
     const navigate = useNavigate();
 
@@ -73,9 +76,53 @@ const FileManager = () => {
         setCurrentDir(dirs.join('/'));
     };
 
+    const handleOpenShareModal = (fileName) => {
+        setFileToShare(fileName);
+        setIsShareModalOpen(true);
+    };
+
+    const handleCloseShareModal = () => {
+        setIsShareModalOpen(false);
+        setShareUsername('');
+        setFileToShare(null);
+    };
+
+    const handleShareFile = async () => {
+        try {
+            const userExists = await Backendless.Data.of(Backendless.User).find({condition: `login = '${shareUsername}'`});
+            if (userExists.length === 0) {
+                alert('Користувача не існує');
+                return;
+            }
+
+            const filePath = `/user_files/${shareUsername}/shared_with_me/${fileToShare}.txt`;
+            const fileLink = `/user_files/${user.login}/${currentDir}/${fileToShare}`;
+            await Backendless.Files.saveFile(filePath, fileLink, true);
+            alert('Файл успішно поділено');
+        } catch (error) {
+            console.error('Failed to share file:', error);
+        } finally {
+            handleCloseShareModal();
+        }
+    };
+
+    const handleOpenSharedFile = async (fileName) => {
+        try {
+            const filePath = `/user_files/${user.login}/shared_with_me/${fileName}`;
+            const fileLink = await Backendless.Files.loadFile(filePath);
+            window.open(fileLink);
+        } catch (error) {
+            console.error('Failed to open shared file:', error);
+        }
+    };
+
     const handleExitClick = () => {
         Backendless.UserService.logout().then(r => navigate('/'))
 
+    };
+
+    const handleRefresh = () => {
+        fetchFiles(currentDir);
     };
 
 
@@ -85,7 +132,16 @@ const FileManager = () => {
 
     return (
         <div>
-            <h2>Управління файлами</h2>
+            <h2>Управління файлами ({user?.login})</h2>
+            <button onClick={handleRefresh}>Оновити сторінку</button>
+            {isShareModalOpen && (
+                <div>
+                    <input type="text" value={shareUsername} onChange={e => setShareUsername(e.target.value)}
+                           placeholder="Ім'я користувача"/>
+                    <button onClick={handleShareFile}>Поділитися</button>
+                    <button onClick={handleCloseShareModal}>Закрити</button>
+                </div>
+            )}
             <button onClick={() => handleExitClick()}>Вийти з системи</button>
             {currentDir && <button onClick={handleBackClick}>Назад</button>}
             <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
@@ -105,6 +161,7 @@ const FileManager = () => {
                     <li key={file.name}>
                         <span>{file.name}</span>
                         <button onClick={() => handleDelete(file.name)}>Видалити</button>
+                        <button onClick={() => handleOpenShareModal(file.name)}>Поділитися</button>
                         <a href={file.publicUrl} download>Скачати</a>
                     </li>
                 ))}
