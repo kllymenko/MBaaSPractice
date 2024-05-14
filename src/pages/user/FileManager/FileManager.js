@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import Backendless from 'backendless';
 import {useNavigate} from "react-router";
+import axios from 'axios';
 
 const FileManager = () => {
     const [files, setFiles] = useState([]);
@@ -8,9 +9,9 @@ const FileManager = () => {
     const [loading, setLoading] = useState(true);
     const [currentDir, setCurrentDir] = useState('');
     const [newFolderName, setNewFolderName] = useState('');
-    const [shareUsername, setShareUsername] = useState('');
+    const [shareLogin, setShareLogin] = useState('');
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-    const [fileToShare, setFileToShare] = useState(null);
+    const [fileToShare, setFileToShare] = useState('');
     const user = Backendless.UserService.currentUser;
     const navigate = useNavigate();
 
@@ -38,7 +39,7 @@ const FileManager = () => {
         try {
             const filePath = `/user_files/${user.login}/${currentDir}/${fileName}`;
             await Backendless.Files.remove(filePath);
-            fetchFiles(currentDir);
+            await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to delete file:', error);
         }
@@ -76,29 +77,30 @@ const FileManager = () => {
         setCurrentDir(dirs.join('/'));
     };
 
-    const handleOpenShareModal = (fileName) => {
-        setFileToShare(fileName);
+    const handleOpenShareModal = (file) => {
         setIsShareModalOpen(true);
+        setFileToShare(file);
     };
 
     const handleCloseShareModal = () => {
         setIsShareModalOpen(false);
-        setShareUsername('');
-        setFileToShare(null);
+        setShareLogin('');
+        setFileToShare('');
     };
 
     const handleShareFile = async () => {
         try {
-            const userExists = await Backendless.Data.of(Backendless.User).find({condition: `login = '${shareUsername}'`});
+            const whereClause = "login = '" + shareLogin + "'";
+            const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(whereClause);
+            const userExists = await Backendless.Data.of("Users").find(queryBuilder);
             if (userExists.length === 0) {
                 alert('Користувача не існує');
                 return;
             }
-
-            const filePath = `/user_files/${shareUsername}/shared_with_me/${fileToShare}.txt`;
-            const fileLink = `/user_files/${user.login}/${currentDir}/${fileToShare}`;
-            await Backendless.Files.saveFile(filePath, fileLink, true);
-            alert('Файл успішно поділено');
+            const pathToSave = `/user_files/${shareLogin}/shared_with_me`;
+            const downloadLink = fileToShare.publicUrl;
+            await Backendless.Files.saveFile(pathToSave, fileToShare.name + '.txt', downloadLink, true);
+            alert('Файл успішно передано');
         } catch (error) {
             console.error('Failed to share file:', error);
         } finally {
@@ -106,19 +108,18 @@ const FileManager = () => {
         }
     };
 
-    const handleOpenSharedFile = async (fileName) => {
-        try {
-            const filePath = `/user_files/${user.login}/shared_with_me/${fileName}`;
-            const fileLink = await Backendless.Files.loadFile(filePath);
-            window.open(fileLink);
-        } catch (error) {
-            console.error('Failed to open shared file:', error);
+    const handleDownloadFile = async (file) => {
+        if (currentDir.includes('shared_with_me')) {
+            const response = await axios.get(file.publicUrl);
+            const link = response.data;
+            window.open(link, "_blank");
+        } else {
+            window.open(file.publicUrl, "_blank");
         }
-    };
+    }
 
     const handleExitClick = () => {
-        Backendless.UserService.logout().then(r => navigate('/'))
-
+        Backendless.UserService.logout().then(navigate('/'))
     };
 
     const handleRefresh = () => {
@@ -136,7 +137,7 @@ const FileManager = () => {
             <button onClick={handleRefresh}>Оновити сторінку</button>
             {isShareModalOpen && (
                 <div>
-                    <input type="text" value={shareUsername} onChange={e => setShareUsername(e.target.value)}
+                    <input type="text" value={shareLogin} onChange={e => setShareLogin(e.target.value)}
                            placeholder="Ім'я користувача"/>
                     <button onClick={handleShareFile}>Поділитися</button>
                     <button onClick={handleCloseShareModal}>Закрити</button>
@@ -161,8 +162,8 @@ const FileManager = () => {
                     <li key={file.name}>
                         <span>{file.name}</span>
                         <button onClick={() => handleDelete(file.name)}>Видалити</button>
-                        <button onClick={() => handleOpenShareModal(file.name)}>Поділитися</button>
-                        <a href={file.publicUrl} download>Скачати</a>
+                        {currentDir !== 'shared_with_me' && <button onClick={() => handleOpenShareModal(file)}>Поділитися</button>}
+                        <button onClick={() => handleDownloadFile(file)}>Завантажити</button>
                     </li>
                 ))}
             </ul>
