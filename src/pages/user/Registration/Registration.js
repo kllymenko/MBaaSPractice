@@ -70,7 +70,7 @@ const Registration = () => {
                     />
                 </div>
                 <div>
-                    <label>Password:</label>
+                    <label>Пароль:</label>
                     <input
                         type="password"
                         value={password}
@@ -118,7 +118,7 @@ const Registration = () => {
                     />
                 </div>
                 <button type="submit" disabled={loading}>
-                    {loading ? 'Registering...' : 'Register'}
+                    {loading ? 'Реєстрація...' : 'Зареєструватися'}
                 </button>
             </form>
             {error && <div className="error">{error}</div>}
