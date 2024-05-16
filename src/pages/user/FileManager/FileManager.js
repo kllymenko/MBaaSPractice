@@ -50,7 +50,7 @@ const FileManager = () => {
             const path = `/user_files/${user.login}/${currentDir}/${newFolderName}`;
             await Backendless.Files.createDirectory(path)
             setNewFolderName('')
-            fetchFiles(currentDir);
+            await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to create folder:', error);
         }
@@ -62,7 +62,7 @@ const FileManager = () => {
         const path = `/user_files/${user.login}/${currentDir}/${file.name}`;
         try {
             await Backendless.Files.upload(file, path);
-            fetchFiles(currentDir);
+            await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to upload file:', error);
         }
