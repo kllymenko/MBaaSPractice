@@ -49,6 +49,7 @@ const FileManager = () => {
         try {
             const path = `/user_files/${user.login}/${currentDir}/${newFolderName}`;
             await Backendless.Files.createDirectory(path)
+            setNewFolderName('')
             fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to create folder:', error);
@@ -134,6 +135,7 @@ const FileManager = () => {
     return (
         <div>
             <h2>Управління файлами ({user?.login})</h2>
+            <h4>Директорія: {currentDir}</h4>
             <button onClick={handleRefresh}>Оновити сторінку</button>
             {isShareModalOpen && (
                 <div>
@@ -162,7 +164,8 @@ const FileManager = () => {
                     <li key={file.name}>
                         <span>{file.name}</span>
                         <button onClick={() => handleDelete(file.name)}>Видалити</button>
-                        {currentDir !== 'shared_with_me' && <button onClick={() => handleOpenShareModal(file)}>Поділитися</button>}
+                        {currentDir !== 'shared_with_me' &&
+                            <button onClick={() => handleOpenShareModal(file)}>Поділитися</button>}
                         <button onClick={() => handleDownloadFile(file)}>Завантажити</button>
                     </li>
                 ))}
