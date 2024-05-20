@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import Backendless from 'backendless';
 import {useNavigate} from "react-router";
 import axios from 'axios';
+import {Link} from "react-router-dom";
 
 const FileManager = () => {
     const [files, setFiles] = useState([]);
@@ -133,40 +134,77 @@ const FileManager = () => {
     }
 
     return (
-        <div>
-            <h2>Управління файлами ({user?.login})</h2>
+        <div className="container mt-4">
+            <div className="d-flex justify-content-between">
+                <Link to="/after-login">
+                    <button className="btn btn-primary btn-block">Попередня сторінка</button>
+                </Link>
+                <button className="btn btn-secondary" onClick={handleExitClick}>Вийти з системи</button>
+                <h2>Управління файлами ({user?.login})</h2>
+            </div>
             <h4>Директорія: {currentDir}</h4>
-            <button onClick={handleRefresh}>Оновити сторінку</button>
+            <div className="mb-3">
+            <button className="btn btn-primary mr-2" onClick={handleRefresh}>Оновити сторінку</button>
+                {currentDir && <button className="btn btn-secondary ml-2" onClick={handleBackClick}>Назад</button>}
+            </div>
             {isShareModalOpen && (
-                <div>
-                    <input type="text" value={shareLogin} onChange={e => setShareLogin(e.target.value)}
-                           placeholder="Ім'я користувача"/>
-                    <button onClick={handleShareFile}>Поділитися</button>
-                    <button onClick={handleCloseShareModal}>Закрити</button>
+                <div className="modal show d-block" tabIndex="-1">
+                    <div className="modal-dialog">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Поділитися файлом</h5>
+                                <button type="button" className="close" onClick={handleCloseShareModal}>
+                                    <span>&times;</span>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <input
+                                    type="text"
+                                    className="form-control mb-3"
+                                    value={shareLogin}
+                                    onChange={e => setShareLogin(e.target.value)}
+                                    placeholder="Ім'я користувача"
+                                />
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-primary" onClick={handleShareFile}>Поділитися</button>
+                                <button className="btn btn-secondary" onClick={handleCloseShareModal}>Закрити</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
-            <button onClick={() => handleExitClick()}>Вийти з системи</button>
-            {currentDir && <button onClick={handleBackClick}>Назад</button>}
-            <input type="text" value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
-                   placeholder="Ім'я нової папки"/>
-            <button onClick={handleCreateFolder}>Створити папку</button>
-            <input type="file" onChange={handleUploadFile}/>
-            <ul>
+            <div className="mb-3">
+                <input
+                    type="text"
+                    className="form-control mb-2"
+                    value={newFolderName}
+                    onChange={e => setNewFolderName(e.target.value)}
+                    placeholder="Ім'я нової папки"
+                />
+                <button className="btn btn-success mb-2" onClick={handleCreateFolder}>Створити папку</button>
+                <input type="file" className="form-control-file mb-2" onChange={handleUploadFile} />
+            </div>
+            <ul className="list-group">
                 {directories.map(dir => (
-                    <li key={dir.name}>
+                    <li key={dir.name} className="list-group-item d-flex justify-content-between align-items-center">
                         <span>{dir.name}</span>
-                        {dir.name !== 'shared_with_me' &&
-                            <button onClick={() => handleDelete(dir.name)}>Видалити</button>}
-                        <button onClick={() => handleDirectoryClick(dir.name)}>Відкрити</button>
+                        <div>
+                            {dir.name !== 'shared_with_me' &&
+                                <button className="btn btn-danger btn-sm mr-2" onClick={() => handleDelete(dir.name)}>Видалити</button>}
+                            <button className="btn btn-info btn-sm" onClick={() => handleDirectoryClick(dir.name)}>Відкрити</button>
+                        </div>
                     </li>
                 ))}
                 {files.map(file => (
-                    <li key={file.name}>
+                    <li key={file.name} className="list-group-item d-flex justify-content-between align-items-center">
                         <span>{file.name}</span>
-                        <button onClick={() => handleDelete(file.name)}>Видалити</button>
-                        {currentDir !== 'shared_with_me' &&
-                            <button onClick={() => handleOpenShareModal(file)}>Поділитися</button>}
-                        <button onClick={() => handleDownloadFile(file)}>Завантажити</button>
+                        <div>
+                            <button className="btn btn-danger btn-sm mr-2" onClick={() => handleDelete(file.name)}>Видалити</button>
+                            {currentDir !== 'shared_with_me' &&
+                                <button className="btn btn-warning btn-sm mr-2" onClick={() => handleOpenShareModal(file)}>Поділитися</button>}
+                            <button className="btn btn-success btn-sm" onClick={() => handleDownloadFile(file)}>Завантажити</button>
+                        </div>
                     </li>
                 ))}
             </ul>
