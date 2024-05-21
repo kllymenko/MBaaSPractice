@@ -13,15 +13,24 @@ const FileManager = () => {
     const [shareLogin, setShareLogin] = useState('');
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [fileToShare, setFileToShare] = useState('');
-    const user = Backendless.UserService.currentUser;
+    const [user, setUser] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetchFiles(currentDir);
+        Backendless.UserService.getCurrentUser()
+            .then(user => {
+                console.log(user);
+                setUser(user);
+                fetchFiles(currentDir);
+            })
+            .catch(error => {
+                console.error('Failed to get current user:', error);
+            });
     }, [currentDir]);
 
     const fetchFiles = async (dir) => {
         setLoading(true);
+
         try {
             const path = `/user_files/${user.login}/${dir}`;
             const fileListing = await Backendless.Files.listing(path);
