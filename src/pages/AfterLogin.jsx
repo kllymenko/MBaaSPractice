@@ -1,14 +1,15 @@
 import React from 'react';
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 import Backendless from "backendless";
-import {useNavigate} from "react-router";
+import { useNavigate } from "react-router";
 
 function AfterLogin() {
     const navigate = useNavigate();
 
     const handleExitClick = () => {
-        Backendless.UserService.logout().then(navigate('/'))
+        Backendless.UserService.logout().then(() => navigate('/'));
     };
+
     return (
         <div className="container">
             <div className="row justify-content-center align-items-center">
@@ -17,12 +18,14 @@ function AfterLogin() {
                     <div className="text-center mb-4">
                         <Link to="/file-manager" className="btn btn-primary mr-2">Управління файлами</Link>
                         <Link to="/profile" className="btn btn-primary mr-2">Профіль користувача</Link>
-                        <button className="btn btn-primary mr-2" onClick={() => handleExitClick()}>Вийти з системи</button>
+                        <Link to="/my-places" className="btn btn-primary mr-2">Мої місця</Link>
+                        <button className="btn btn-danger mr-1" onClick={handleExitClick}>Вийти з системи</button>
                     </div>
                 </div>
             </div>
         </div>
     );
+
 }
 
 export default AfterLogin;

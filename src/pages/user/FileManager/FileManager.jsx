@@ -1,10 +1,11 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import Backendless from 'backendless';
-import {useNavigate} from "react-router";
+import { useNavigate } from 'react-router';
 import axios from 'axios';
-import {Link} from "react-router-dom";
+import { Link } from 'react-router-dom';
 
 const FileManager = () => {
+    const [user, setUser] = useState(null);
     const [files, setFiles] = useState([]);
     const [directories, setDirectories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -13,24 +14,31 @@ const FileManager = () => {
     const [shareLogin, setShareLogin] = useState('');
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [fileToShare, setFileToShare] = useState('');
-    const [user, setUser] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         Backendless.UserService.getCurrentUser()
-            .then(user => {
-                console.log(user);
-                setUser(user);
-                fetchFiles(currentDir);
+            .then(currentUser => {
+                setUser(currentUser);
             })
             .catch(error => {
-                console.error('Failed to get current user:', error);
+                console.error('Error getting current user:', error);
             });
-    }, [currentDir]);
+    }, []);
+
+    useEffect(() => {
+        if (user) {
+            fetchFiles(currentDir);
+        }
+    }, [user, currentDir]);
 
     const fetchFiles = async (dir) => {
-        setLoading(true);
+        if (!user) {
+            console.error('User is not loaded yet');
+            return;
+        }
 
+        setLoading(true);
         try {
             const path = `/user_files/${user.login}/${dir}`;
             const fileListing = await Backendless.Files.listing(path);
@@ -46,6 +54,11 @@ const FileManager = () => {
     };
 
     const handleDelete = async (fileName) => {
+        if (!user) {
+            console.error('User is not loaded yet');
+            return;
+        }
+
         try {
             const filePath = `/user_files/${user.login}/${currentDir}/${fileName}`;
             await Backendless.Files.remove(filePath);
@@ -56,10 +69,15 @@ const FileManager = () => {
     };
 
     const handleCreateFolder = async () => {
+        if (!user) {
+            console.error('User is not loaded yet');
+            return;
+        }
+
         try {
             const path = `/user_files/${user.login}/${currentDir}/${newFolderName}`;
-            await Backendless.Files.createDirectory(path)
-            setNewFolderName('')
+            await Backendless.Files.createDirectory(path);
+            setNewFolderName('');
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to create folder:', error);
@@ -67,8 +85,12 @@ const FileManager = () => {
     };
 
     const handleUploadFile = async (event) => {
-        const file = event.target.files[0];
+        if (!user) {
+            console.error('User is not loaded yet');
+            return;
+        }
 
+        const file = event.target.files[0];
         const path = `/user_files/${user.login}/${currentDir}/${file.name}`;
         try {
             await Backendless.Files.upload(file, path);
@@ -100,8 +122,13 @@ const FileManager = () => {
     };
 
     const handleShareFile = async () => {
+        if (!user) {
+            console.error('User is not loaded yet');
+            return;
+        }
+
         try {
-            const whereClause = "login = '" + shareLogin + "'";
+            const whereClause = `login = '${shareLogin}'`;
             const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(whereClause);
             const userExists = await Backendless.Data.of("Users").find(queryBuilder);
             if (userExists.length === 0) {
@@ -127,18 +154,17 @@ const FileManager = () => {
         } else {
             window.open(file.publicUrl, "_blank");
         }
-    }
+    };
 
     const handleExitClick = () => {
-        Backendless.UserService.logout().then(navigate('/'))
+        Backendless.UserService.logout().then(() => navigate('/'));
     };
 
     const handleRefresh = () => {
         fetchFiles(currentDir);
     };
 
-
-    if (loading) {
+    if (loading || !user) {
         return <div>Loading...</div>;
     }
 
@@ -153,7 +179,7 @@ const FileManager = () => {
             </div>
             <h4>Директорія: {currentDir}</h4>
             <div className="mb-3">
-            <button className="btn btn-primary mr-2" onClick={handleRefresh}>Оновити сторінку</button>
+                <button className="btn btn-primary mr-2" onClick={handleRefresh}>Оновити сторінку</button>
                 {currentDir && <button className="btn btn-secondary ml-2" onClick={handleBackClick}>Назад</button>}
             </div>
             {isShareModalOpen && (

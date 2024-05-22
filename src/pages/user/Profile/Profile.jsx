@@ -1,7 +1,7 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import Backendless from 'backendless';
-import {useNavigate} from 'react-router';
-import {Link} from 'react-router-dom';
+import { useNavigate } from 'react-router';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
     const [user, setUser] = useState(null);
@@ -10,38 +10,50 @@ const Profile = () => {
     const [profileData, setProfileData] = useState({
         login: '',
         age: '',
-        country: ''
+        country: '',
+        gender: ''
     });
     const [selectedFile, setSelectedFile] = useState(null);
     const [initialLogin, setInitialLogin] = useState('');
+    const [trackLocation, setTrackLocation] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchUserProfile();
     }, []);
 
+    useEffect(() => {
+        let locationInterval;
+        if (trackLocation) {
+            locationInterval = setInterval(() => {
+                updateLocation();
+            }, 60000);
+        }
+        return () => {
+            if (locationInterval) clearInterval(locationInterval);
+        };
+    }, [trackLocation]);
+
     const fetchUserProfile = async () => {
         setLoading(true);
-        setTimeout(() => {
-        }, 1000);
         try {
             const currentUser = await Backendless.UserService.getCurrentUser(true);
             const email = currentUser.email;
-
-            // Знаходимо користувача в базі даних за email
             const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`email = '${email}'`);
             const users = await Backendless.Data.of("Users").find(queryBuilder);
 
             if (users.length > 0) {
                 const dbUser = users[0];
                 setUser(dbUser);
-                setAvatarPath(dbUser.avatar_path);
+                setAvatarPath(dbUser.avatar_path || '');
                 setProfileData({
-                    login: dbUser.login,
-                    age: dbUser.age,
-                    country: dbUser.country
+                    login: dbUser.login || '',
+                    age: dbUser.age || '',
+                    country: dbUser.country || '',
+                    gender: dbUser.gender || ''
                 });
-                setInitialLogin(dbUser.login)
+                setInitialLogin(dbUser.login || '');
+                setTrackLocation(dbUser.location_access || false);
             }
         } catch (error) {
             console.error('Failed to fetch user profile:', error);
@@ -50,24 +62,43 @@ const Profile = () => {
         }
     };
 
+    const updateLocation = async () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const { latitude, longitude } = position.coords;
+                const updatedUser = { ...user, my_location: new Backendless.Data.Point().setLatitude(latitude).setLongitude(longitude) };
+                await Backendless.UserService.update(updatedUser);
+            }, (error) => {
+                console.error('Failed to get geolocation:', error);
+            });
+        } else {
+            console.error('Geolocation is not supported by this browser.');
+        }
+    };
+
     const handleProfileChange = (event) => {
-        const {name, value} = event.target;
+        const { name, value } = event.target;
         setProfileData((prevData) => ({
             ...prevData,
             [name]: value,
         }));
     };
 
+    const handleTrackLocationChange = async () => {
+        const newTrackLocation = !trackLocation;
+        setTrackLocation(newTrackLocation);
+        const updatedUser = { ...user, location_access: newTrackLocation };
+        await Backendless.UserService.update(updatedUser);
+    };
+
     const handleProfileUpdate = async () => {
         try {
             let newAvatarPath = avatarPath;
             if (selectedFile) {
-                // Завантажити новий аватар
                 const path = `/user_avatars/${user.login}/${selectedFile.name}`;
                 const result = await Backendless.Files.upload(selectedFile, path);
                 newAvatarPath = result.fileURL;
 
-                // Видалення попереднього аватара, якщо це не базова фотографія
                 if (user.avatar_path && !user.avatar_path.includes('default_avatar.png')) {
                     await Backendless.Files.remove(user.avatar_path.replace(Backendless.appPath, ''));
                 }
@@ -76,14 +107,11 @@ const Profile = () => {
                 await Backendless.Files.renameFile(`/user_files/${initialLogin}`, profileData.login);
             }
 
-            // Оновлення шляху до аватара в базі даних
-            const updatedUser = {...user, ...profileData, avatar_path: newAvatarPath};
+            const updatedUser = { ...user, ...profileData, avatar_path: newAvatarPath, location_access: trackLocation };
             await Backendless.UserService.update(updatedUser);
 
-
-            // Оновлення стану користувача та аватара
             setAvatarPath('');
-            setUser('')
+            setUser('');
             await fetchUserProfile();
         } catch (error) {
             console.error('Failed to update profile:', error);
@@ -94,7 +122,6 @@ const Profile = () => {
         const file = event.target.files[0];
         setSelectedFile(file);
 
-        // Відображення попереднього перегляду аватара
         const reader = new FileReader();
         reader.onloadend = () => {
             setAvatarPath(reader.result);
@@ -152,6 +179,29 @@ const Profile = () => {
                     />
                 </div>
                 <div className="mb-3">
+                    <label>Стать</label>
+                    <select
+                        className="form-control"
+                        name="gender"
+                        value={profileData.gender}
+                        onChange={handleProfileChange}
+                    >
+                        <option value="">Виберіть стать</option>
+                        <option value="male">Чоловік</option>
+                        <option value="female">Жінка</option>
+                    </select>
+                </div>
+                <div className="mb-3">
+                    <label>
+                        <input
+                            type="checkbox"
+                            checked={trackLocation}
+                            onChange={handleTrackLocationChange}
+                        />
+                        Відслідковувати моє місце розташування
+                    </label>
+                </div>
+                <div className="mb-3">
                     <label>Завантажити аватар</label>
                     <input
                         type="file"
@@ -166,7 +216,7 @@ const Profile = () => {
                             src={avatarPath}
                             alt="Avatar"
                             className="img-thumbnail"
-                            style={{width: '150px', height: '150px'}} // Add inline styles for smaller size
+                            style={{ width: '150px', height: '150px' }}
                         />
                     </div>
                 )}

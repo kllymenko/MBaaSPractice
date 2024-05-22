@@ -105,8 +105,8 @@ const Registration = () => {
                             required
                         >
                             <option value="">Виберіть стать</option>
-                            <option value="male">Чоловіча</option>
-                            <option value="female">Жіноча</option>
+                            <option value="male">Чоловік</option>
+                            <option value="female">Жінка</option>
                         </select>
                     </div>
                     <div className="form-group">
