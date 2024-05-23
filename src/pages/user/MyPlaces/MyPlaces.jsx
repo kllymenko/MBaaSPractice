@@ -1,148 +1,212 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import Backendless from 'backendless';
+import {Card, Button} from 'react-bootstrap';
 
 const MyPlaces = () => {
     const [places, setPlaces] = useState([]);
     const [newPlace, setNewPlace] = useState({
-        description: '',
         category: '',
+        description: '',
         hashtags: '',
-        imageUrl: '',
-        location: { latitude: null, longitude: null }
+        image: ''
     });
-    const [currentLocation, setCurrentLocation] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [photoPath, setPhotoPath] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [selectedLocation, setSelectedLocation] = useState(null);
+    const [user, setUser] = useState(null);
 
     useEffect(() => {
-        fetchPlaces();
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((position) => {
-                setCurrentLocation({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude
-                });
-            });
-        }
+        fetchUserPlaces();
     }, []);
 
-    const fetchPlaces = async () => {
-        setLoading(true);
+    const fetchUserPlaces = async () => {
         try {
-            const places = await Backendless.Data.of("Place").find();
-            setPlaces(places);
+            const currentUser = await Backendless.UserService.getCurrentUser(true);
+            setUser(currentUser);
+            const objectId = currentUser.objectId;
+            const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`ownerId = '${objectId}'`);
+           const userPlaces = await Backendless.Data.of('Place').find(queryBuilder);
+            setPlaces(userPlaces);
+
         } catch (error) {
-            console.error('Failed to fetch places:', error);
-        } finally {
-            setLoading(false);
+            console.error('Failed to fetch current user:', error);
         }
     };
 
     const handleInputChange = (event) => {
-        const { name, value } = event.target;
+        const {name, value} = event.target;
         setNewPlace((prevPlace) => ({
             ...prevPlace,
-            [name]: value
+            [name]: value,
         }));
     };
 
+    const handlePhotoUpload = (event) => {
+        const file = event.target.files[0];
+        setSelectedFile(file);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPhotoPath(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleAddPlace = async () => {
+        if (!user) return;
         try {
-            if (!newPlace.location.latitude || !newPlace.location.longitude) {
-                newPlace.location = currentLocation;
+            if (selectedFile) {
+                const path = `/places-photos/${user.login}/${selectedFile.name}`;
+                const result = await Backendless.Files.upload(selectedFile, path);
+                const placeObject = ({
+                    category: newPlace.category,
+                    coordinates: user.my_location,
+                    description: newPlace.description,
+                    hashtags: newPlace.hashtags,
+                    image: result.fileURL
+                });
+                await Backendless.Data.of('Place').save(placeObject);
+                setNewPlace({
+                    category: '',
+                    description: '',
+                    hashtags: '',
+                    image: ''
+                });
+                setPhotoPath('');
+                fetchUserPlaces();
             }
-            const addedPlace = await Backendless.Data.of("Place").save(newPlace);
-            setPlaces([...places, addedPlace]);
-            setNewPlace({
-                description: '',
-                category: '',
-                hashtags: '',
-                imageUrl: '',
-                location: { latitude: null, longitude: null }
-            });
         } catch (error) {
             console.error('Failed to add place:', error);
         }
     };
 
     const handleDeletePlace = async (placeId) => {
+        if (!user) return;
         try {
-            await Backendless.Data.of("Place").remove({ objectId: placeId });
-            setPlaces(places.filter((place) => place.objectId !== placeId));
+            const place = await Backendless.Data.of('Place').findById(placeId);
+            if (place.ownerId === user.objectId) {
+                await Backendless.Data.of('Place').remove(place);
+                fetchUserPlaces();
+            } else {
+                console.error('You can only delete your own places.');
+            }
         } catch (error) {
             console.error('Failed to delete place:', error);
         }
     };
 
-    const handleSearch = async (searchParams) => {
-        // Implement search logic here
+    const handleSearchChange = (event) => {
+        setSearchTerm(event.target.value);
     };
 
-    if (loading) {
-        return <div>Loading...</div>;
-    }
+    const handleSearchPlaces = async () => {
+        if (!user) return;
+        try {
+            const whereClause = `description LIKE '%${searchTerm}%' OR category LIKE '%${searchTerm}%'`;
+            const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(whereClause);
+            const results = await Backendless.Data.of('Place').find(queryBuilder);
+            setSearchResults(results);
+        } catch (error) {
+            console.error('Failed to search places:', error);
+        }
+    };
 
     return (
         <div className="container mt-4">
             <h2>Мої місця</h2>
-            <div className="mt-4">
+            {/* Форма для додавання місця */}
+            <div className="mb-3">
+                <input
+                    type="text"
+                    className="form-control"
+                    name="description"
+                    value={newPlace.description}
+                    onChange={handleInputChange}
+                    placeholder="Опис"
+                />
+                <input
+                    type="text"
+                    className="form-control"
+                    name="hashtags"
+                    value={newPlace.hashtags}
+                    onChange={handleInputChange}
+                    placeholder="Хештеги"
+                />
+                <input
+                    type="text"
+                    className="form-control"
+                    name="category"
+                    value={newPlace.category}
+                    onChange={handleInputChange}
+                    placeholder="Категорія"
+                />
                 <div className="mb-3">
-                    <label>Опис</label>
+                    <label>Завантажити аватар</label>
                     <input
-                        type="text"
-                        className="form-control"
-                        name="description"
-                        value={newPlace.description}
-                        onChange={handleInputChange}
+                        type="file"
+                        className="form-control-file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
                     />
                 </div>
-                <div className="mb-3">
-                    <label>Категорія</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        name="category"
-                        value={newPlace.category}
-                        onChange={handleInputChange}
-                    />
-                </div>
-                <div className="mb-3">
-                    <label>Хештеги</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        name="hashtags"
-                        value={newPlace.hashtags}
-                        onChange={handleInputChange}
-                    />
-                </div>
-                <div className="mb-3">
-                    <label>Зображення (URL)</label>
-                    <input
-                        type="text"
-                        className="form-control"
-                        name="imageUrl"
-                        value={newPlace.imageUrl}
-                        onChange={handleInputChange}
-                    />
-                </div>
-                <button className="btn btn-success" onClick={handleAddPlace}>Додати місце</button>
+                {photoPath && (
+                    <div className="mb-3">
+                        <img
+                            src={photoPath}
+                            alt="Photo"
+                            className="img-thumbnail"
+                            style={{width: '150px', height: '150px'}}
+                        />
+                    </div>
+                )}
+                <button className="btn btn-success mt-2" onClick={handleAddPlace}>Додати місце</button>
             </div>
-            <div className="mt-4">
-                <h3>Список місць</h3>
-                <ul className="list-group">
-                    {places.map((place) => (
-                        <li className="list-group-item d-flex justify-content-between align-items-center" key={place.objectId}>
-                            <div>
-                                <h5>{place.description}</h5>
-                                <p>Категорія: {place.category}</p>
-                                <p>Хештеги: {place.hashtags}</p>
-                                <p>Координати: {place.location.latitude}, {place.location.longitude}</p>
-                                {place.imageUrl && <img src={place.imageUrl} alt="Place" style={{ width: '150px' }} />}
-                            </div>
-                            <button className="btn btn-danger" onClick={() => handleDeletePlace(place.objectId)}>Видалити</button>
-                        </li>
-                    ))}
-                </ul>
+
+            <div className="mb-3">
+                <input
+                    type="text"
+                    className="form-control"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Пошук за описом або категорією"
+                />
+                <button className="btn btn-primary mt-2" onClick={handleSearchPlaces}>Знайти</button>
+            </div>
+            <h3>Результати пошуку</h3>
+            <div className="row">
+                {searchResults.map((place) => (
+                    <div key={place.objectId} className="col-md-4 mb-3">
+                        <Card style={{width: '18rem'}}>
+                            <Card.Img variant="top" src={place.image}/>
+                            <Card.Body>
+                                <Card.Title>{place.description}</Card.Title>
+                                <Card.Text>{place.hashtags}</Card.Text>
+                                <Button variant="danger"
+                                        onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
+                            </Card.Body>
+                        </Card>
+                    </div>
+                ))}
+            </div>
+
+            {/* Ваші місця */}
+            <h3>Мої місця</h3>
+            <div className="row">
+                {places.map((place) => (
+                    <div key={place.objectId} className="col-md-4 mb-3">
+                        <Card style={{width: '18rem'}}>
+                            <Card.Img variant="top" src={place.image}/>
+                            <Card.Body>
+                                <Card.Title>{place.description}</Card.Title>
+                                <Card.Text>{place.hashtags}</Card.Text>
+                                <Button variant="danger"
+                                        onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
+                            </Card.Body>
+                        </Card>
+                    </div>
+                ))}
             </div>
         </div>
     );

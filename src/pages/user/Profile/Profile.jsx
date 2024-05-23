@@ -53,7 +53,7 @@ const Profile = () => {
                     gender: dbUser.gender || ''
                 });
                 setInitialLogin(dbUser.login || '');
-                setTrackLocation(dbUser.location_access || false);
+                setTrackLocation(dbUser.location_access);
             }
         } catch (error) {
             console.error('Failed to fetch user profile:', error);
@@ -67,6 +67,7 @@ const Profile = () => {
             navigator.geolocation.getCurrentPosition(async (position) => {
                 const { latitude, longitude } = position.coords;
                 const updatedUser = { ...user, my_location: new Backendless.Data.Point().setLatitude(latitude).setLongitude(longitude) };
+                console.log(position);
                 await Backendless.UserService.update(updatedUser);
             }, (error) => {
                 console.error('Failed to get geolocation:', error);
