@@ -98,8 +98,7 @@ const MyPlaces = () => {
         try {
             const place = await Backendless.Data.of('Place').findById(placeId);
             if (place.ownerId === user.objectId) {
-                const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`placeId = '${placeId}'`);
-                await Backendless.Data.of('Likes').remove(queryBuilder);
+                await Backendless.Data.of('Likes').bulkDelete(`placeId = '${placeId}'`)
                 await Backendless.Files.remove(place.image);
                 await Backendless.Data.of('Place').remove(place);
                 setSearchResults([]);
@@ -108,7 +107,7 @@ const MyPlaces = () => {
                 alert('Ви не можете видалити місце іншого користувача');
             }
         } catch (error) {
-            console.error('Failed to delete place:', error);
+            console.error('Failed to delete place or likes:', error);
         }
     };
 
@@ -252,11 +251,15 @@ const MyPlaces = () => {
                             <h5>{place.description}</h5>
                             <p>Категорія: {place.category}</p>
                             <p>Хештеги: {place.hashtags}</p>
-                            <p>Дата створення: {format(new Date(place.created), 'dd:MM:yyyy')}</p>
-                            <p>Дистанція: {getDistance(
-                                {latitude: user.my_location.y, longitude: user.my_location.x},
-                                {latitude: place.coordinates.y, longitude: place.coordinates.x}
-                            )} м</p>
+                            <p>Дата створення: {format(new Date(place.created), 'dd.MM.yyyy')}</p>
+                            <p>
+                                Дистанція: {user.my_location ? (
+                                `${getDistance(
+                                    { latitude: user.my_location.y, longitude: user.my_location.x },
+                                    { latitude: place.coordinates.y, longitude: place.coordinates.x }
+                                )} м`
+                            ) : 'Невідома'}
+                            </p>
                             <p>Лайків: {place.likesCount}</p>
                         </div>
                         <div className="col-md-4 mb-3">
@@ -282,7 +285,7 @@ const MyPlaces = () => {
                             <h5>{place.description}</h5>
                             <p>{place.category}</p>
                             <p>{place.hashtags}</p>
-                            <p>{format(new Date(place.created), 'dd:MM:yyyy')}</p>
+                            <p>{format(new Date(place.created), 'dd.MM.yyyy')}</p>
                             <p>Лайків: {place.likesCount}</p>
                         </div>
                         <div className="col-md-4 mb-3">
