@@ -130,13 +130,11 @@ const Registration = () => {
                         </button>
                     </div>
                     <p className="text-center">Вже маєте акаунт? <Link to="/login">Увійти</Link></p>
-                    <p>{error && <div className="error">{error}</div>}</p>
+                    {error && <div className="error">{error}</div>}
                 </form>
             </article>
         </div>
-
-    )
-        ;
+    );
 };
 
 export default Registration;

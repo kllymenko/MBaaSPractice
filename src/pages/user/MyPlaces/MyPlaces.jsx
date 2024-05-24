@@ -98,6 +98,8 @@ const MyPlaces = () => {
         try {
             const place = await Backendless.Data.of('Place').findById(placeId);
             if (place.ownerId === user.objectId) {
+                const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`placeId = '${placeId}'`);
+                await Backendless.Data.of('Likes').remove(queryBuilder);
                 await Backendless.Files.remove(place.image);
                 await Backendless.Data.of('Place').remove(place);
                 setSearchResults([]);
