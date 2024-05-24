@@ -1,6 +1,5 @@
 import React, {useState} from 'react';
 import Backendless from 'backendless';
-import {useNavigate} from "react-router";
 import {Link} from "react-router-dom";
 
 const PasswordReset = () => {
@@ -8,7 +7,6 @@ const PasswordReset = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState(null);
-    const navigate = useNavigate();
 
     const handleReset = async (e) => {
         e.preventDefault();

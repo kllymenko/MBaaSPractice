@@ -25,6 +25,7 @@ const Profile = () => {
     useEffect(() => {
         let locationInterval;
         if (trackLocation) {
+            updateLocation();
             locationInterval = setInterval(() => {
                 updateLocation();
             }, 60000);
@@ -67,7 +68,6 @@ const Profile = () => {
             navigator.geolocation.getCurrentPosition(async (position) => {
                 const { latitude, longitude } = position.coords;
                 const updatedUser = { ...user, my_location: new Backendless.Data.Point().setLatitude(latitude).setLongitude(longitude) };
-                console.log(position);
                 await Backendless.UserService.update(updatedUser);
             }, (error) => {
                 console.error('Failed to get geolocation:', error);

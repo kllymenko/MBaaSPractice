@@ -1,6 +1,10 @@
 import React, {useState, useEffect} from 'react';
 import Backendless from 'backendless';
-import {Card, Button} from 'react-bootstrap';
+import {Button} from 'react-bootstrap';
+import {Link} from "react-router-dom";
+import {format} from 'date-fns';
+import LeafletMap from "../../LeafletMap";
+import { getDistance } from 'geolib';
 
 const MyPlaces = () => {
     const [places, setPlaces] = useState([]);
@@ -14,11 +18,14 @@ const MyPlaces = () => {
     const [photoPath, setPhotoPath] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState(null);
     const [user, setUser] = useState(null);
+    const [userLikes, setUserLikes] = useState([]);
+    const [showMap, setShowMap] = useState(null);
+
 
     useEffect(() => {
         fetchUserPlaces();
+        fetchUserLikes();
     }, []);
 
     const fetchUserPlaces = async () => {
@@ -27,7 +34,7 @@ const MyPlaces = () => {
             setUser(currentUser);
             const objectId = currentUser.objectId;
             const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`ownerId = '${objectId}'`);
-           const userPlaces = await Backendless.Data.of('Place').find(queryBuilder);
+            const userPlaces = await Backendless.Data.of('Place').find(queryBuilder);
             setPlaces(userPlaces);
 
         } catch (error) {
@@ -56,6 +63,10 @@ const MyPlaces = () => {
 
     const handleAddPlace = async () => {
         if (!user) return;
+        if (user.my_location === null) {
+            alert('Локація невідома');
+            return;
+        }
         try {
             if (selectedFile) {
                 const path = `/places-photos/${user.login}/${selectedFile.name}`;
@@ -87,10 +98,12 @@ const MyPlaces = () => {
         try {
             const place = await Backendless.Data.of('Place').findById(placeId);
             if (place.ownerId === user.objectId) {
+                await Backendless.Files.remove(place.image);
                 await Backendless.Data.of('Place').remove(place);
+                setSearchResults([]);
                 fetchUserPlaces();
             } else {
-                console.error('You can only delete your own places.');
+                alert('Ви не можете видалити місце іншого користувача');
             }
         } catch (error) {
             console.error('Failed to delete place:', error);
@@ -105,7 +118,9 @@ const MyPlaces = () => {
         if (!user) return;
         try {
             const whereClause = `description LIKE '%${searchTerm}%' OR category LIKE '%${searchTerm}%'`;
-            const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(whereClause);
+            const queryBuilder = Backendless.DataQueryBuilder.create()
+                .setWhereClause(whereClause)
+                .setSortBy(['likesCount DESC']);
             const results = await Backendless.Data.of('Place').find(queryBuilder);
             setSearchResults(results);
         } catch (error) {
@@ -113,10 +128,58 @@ const MyPlaces = () => {
         }
     };
 
+    const handleLikePlace = async (currentPlace) => {
+        if (!user) return;
+        try {
+            const likeObject = {
+                placeId: currentPlace.objectId,
+            };
+            await Backendless.Data.of('Likes').save(likeObject);
+
+            // Update likes count
+            const place = await Backendless.Data.of('Place').findById(currentPlace.objectId);
+            currentPlace.likesCount += 1;
+            await Backendless.Data.of('Place').save(currentPlace);
+            setUserLikes(prevLikes => [...prevLikes, likeObject]);
+            fetchUserPlaces();
+        } catch (error) {
+            console.error('Failed to like place:', error);
+        }
+    };
+
+    const fetchUserLikes = async () => {
+        try {
+            const currentUser = await Backendless.UserService.getCurrentUser(true);
+            const userId = currentUser.objectId;
+            const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`ownerId = '${userId}'`);
+            const likes = await Backendless.Data.of('Likes').find(queryBuilder);
+            setUserLikes(likes);
+        } catch (error) {
+            console.error('Failed to fetch user likes:', error);
+        }
+    };
+
+    const hasUserLiked = (placeId) => {
+        return userLikes.some(like => like.placeId === placeId);
+    };
+
+    const openMap = (objectId) => {
+        if (showMap === objectId) {
+            setShowMap(null);
+        } else {
+            setShowMap(objectId);
+        }
+    };
+
+
     return (
         <div className="container mt-4">
-            <h2>Мої місця</h2>
-            {/* Форма для додавання місця */}
+            <div className="d-flex justify-content-between">
+                <Link to="/after-login">
+                    <button className="btn btn-primary btn-block">Попередня сторінка</button>
+                </Link>
+                <h2>Місця користувача ({user?.login})</h2>
+            </div>
             <div className="mb-3">
                 <input
                     type="text"
@@ -172,42 +235,67 @@ const MyPlaces = () => {
                     onChange={handleSearchChange}
                     placeholder="Пошук за описом або категорією"
                 />
-                <button className="btn btn-primary mt-2" onClick={handleSearchPlaces}>Знайти</button>
+                <Button className="btn btn-primary mt-2" onClick={handleSearchPlaces}>Знайти</Button>
+                <Button className="btn btn-primary mt-2" onClick={() => setSearchResults([])}>Очистити пошук</Button>
+
             </div>
             <h3>Результати пошуку</h3>
             <div className="row">
                 {searchResults.map((place) => (
-                    <div key={place.objectId} className="col-md-4 mb-3">
-                        <Card style={{width: '18rem'}}>
-                            <Card.Img variant="top" src={place.image}/>
-                            <Card.Body>
-                                <Card.Title>{place.description}</Card.Title>
-                                <Card.Text>{place.hashtags}</Card.Text>
-                                <Button variant="danger"
-                                        onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
-                            </Card.Body>
-                        </Card>
-                    </div>
+                    <React.Fragment key={place.objectId}>
+                        <div className="col-md-4 mb-3">
+                            <img src={place.image} alt={place.description} style={{width: '65%'}}/>
+                        </div>
+                        <div className="col-md-4 mb-3">
+                            <h5>{place.description}</h5>
+                            <p>Категорія: {place.category}</p>
+                            <p>Хештеги: {place.hashtags}</p>
+                            <p>Дата створення: {format(new Date(place.created), 'dd:MM:yyyy')}</p>
+                            <p>Дистанція: {getDistance(
+                                {latitude: user.my_location.y, longitude: user.my_location.x},
+                                {latitude: place.coordinates.y, longitude: place.coordinates.x}
+                            )} м</p>
+                            <p>Лайків: {place.likesCount}</p>
+                        </div>
+                        <div className="col-md-4 mb-3">
+                            <div>
+                            <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити мапу</Button>
+                                {showMap === place.objectId && <LeafletMap place={place} />}
+                            </div>
+                            {!hasUserLiked(place.objectId) && (
+                                <Button variant="mt-2 btn-block" onClick={() => handleLikePlace(place)}>Лайк</Button>
+                            )}
+                        </div>
+                    </React.Fragment>
                 ))}
             </div>
-
-            {/* Ваші місця */}
             <h3>Мої місця</h3>
             <div className="row">
                 {places.map((place) => (
-                    <div key={place.objectId} className="col-md-4 mb-3">
-                        <Card style={{width: '18rem'}}>
-                            <Card.Img variant="top" src={place.image}/>
-                            <Card.Body>
-                                <Card.Title>{place.description}</Card.Title>
-                                <Card.Text>{place.hashtags}</Card.Text>
-                                <Button variant="danger"
-                                        onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
-                            </Card.Body>
-                        </Card>
-                    </div>
+                    <React.Fragment key={place.objectId}>
+                        <div className="col-md-4 mb-3">
+                            <img src={place.image} alt={place.description} style={{width: '65%'}}/>
+                        </div>
+                        <div className="col-md-4 mb-3">
+                            <h5>{place.description}</h5>
+                            <p>{place.category}</p>
+                            <p>{place.hashtags}</p>
+                            <p>{format(new Date(place.created), 'dd:MM:yyyy')}</p>
+                            <p>Лайків: {place.likesCount}</p>
+                        </div>
+                        <div className="col-md-4 mb-3">
+                            <Button className="mt-2 btn-block btn-danger"
+                                    onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
+                            <div>
+                                <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити мапу</Button>
+                                {showMap === place.objectId && <LeafletMap place={place} />}
+                            </div>
+                        </div>
+                    </React.Fragment>
                 ))}
             </div>
+
+
         </div>
     );
 };
