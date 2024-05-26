@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const LeafletMap = ({ place }) => {
+const LeafletMapOnePlace = ({ place }) => {
     const markerIcon = new L.Icon({
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
         iconSize: [25, 41],
@@ -29,4 +29,4 @@ const LeafletMap = ({ place }) => {
     );
 }
 
-export default LeafletMap;
+export default LeafletMapOnePlace;

@@ -19,6 +19,7 @@ function AfterLogin() {
                         <Link to="/file-manager" className="btn btn-primary mr-2">Управління файлами</Link>
                         <Link to="/profile" className="btn btn-primary mr-2">Профіль користувача</Link>
                         <Link to="/my-places" className="btn btn-primary mr-2">Мої місця</Link>
+                        <Link to="/friends" className="btn btn-primary mr-2">Друзі</Link>
                         <button className="btn btn-danger mr-1" onClick={handleExitClick}>Вийти з системи</button>
                     </div>
                 </div>

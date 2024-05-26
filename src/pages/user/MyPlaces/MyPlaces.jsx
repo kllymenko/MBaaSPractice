@@ -3,7 +3,7 @@ import Backendless from 'backendless';
 import {Button} from 'react-bootstrap';
 import {Link} from "react-router-dom";
 import {format} from 'date-fns';
-import LeafletMap from "../../LeafletMap";
+import LeafletMapOnePlace from "../Map/LeafletMapOnePlace";
 import { getDistance } from 'geolib';
 
 const MyPlaces = () => {
@@ -265,7 +265,7 @@ const MyPlaces = () => {
                         <div className="col-md-4 mb-3">
                             <div>
                             <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити мапу</Button>
-                                {showMap === place.objectId && <LeafletMap place={place} />}
+                                {showMap === place.objectId && <LeafletMapOnePlace place={place} />}
                             </div>
                             {!hasUserLiked(place.objectId) && (
                                 <Button variant="mt-2 btn-block" onClick={() => handleLikePlace(place)}>Лайк</Button>
@@ -293,7 +293,7 @@ const MyPlaces = () => {
                                     onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
                             <div>
                                 <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити мапу</Button>
-                                {showMap === place.objectId && <LeafletMap place={place} />}
+                                {showMap === place.objectId && <LeafletMapOnePlace place={place} />}
                             </div>
                         </div>
                     </React.Fragment>
