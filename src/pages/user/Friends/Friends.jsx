@@ -30,8 +30,16 @@ const Friends = () => {
         const currentUser = await Backendless.UserService.getCurrentUser();
         const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`receiverId = '${currentUser.objectId}'`);
         const requests = await Backendless.Data.of('FriendRequests').find(queryBuilder);
-        setFriendRequests(requests);
+
+        // Fetch sender details for each request
+        const requestsWithLogin = await Promise.all(requests.map(async request => {
+            const sender = await Backendless.Data.of('Users').findById(request.senderId);
+            return { ...request, senderLogin: sender.login }; // Include sender login
+        }));
+
+        setFriendRequests(requestsWithLogin);
     };
+
 
     const sendFriendRequest = async (receiverId) => {
         const currentUser = await Backendless.UserService.getCurrentUser();
@@ -125,7 +133,7 @@ const Friends = () => {
             <ul>
                 {friendRequests.map(request => (
                     <li key={request.objectId}>
-                        {request.senderId}
+                        {request.senderLogin}
                         <button onClick={() => handleAcceptRequest(request.senderId)}>Прийняти</button>
                     </li>
                 ))}
