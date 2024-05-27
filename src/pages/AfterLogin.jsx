@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from "react-router-dom";
 import Backendless from "backendless";
 import { useNavigate } from "react-router";
+import {Button} from "react-bootstrap";
 
 function AfterLogin() {
     const navigate = useNavigate();
@@ -20,7 +21,8 @@ function AfterLogin() {
                         <Link to="/profile" className="btn btn-primary mr-2">Профіль користувача</Link>
                         <Link to="/my-places" className="btn btn-primary mr-2">Мої місця</Link>
                         <Link to="/friends" className="btn btn-primary mr-2">Друзі</Link>
-                        <button className="btn btn-danger mr-1" onClick={handleExitClick}>Вийти з системи</button>
+                        <Link to="/feedback" className="btn btn-primary mr-2">Feedback</Link>
+                        <Button className="btn btn-danger mr-1" onClick={handleExitClick}>Вийти з системи</Button>
                     </div>
                 </div>
             </div>
