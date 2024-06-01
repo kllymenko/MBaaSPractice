@@ -4,6 +4,20 @@ import { useNavigate } from 'react-router';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 
+const logEvent = async (eventType, message, userId = null) => {
+    try {
+        const logData = {
+            timestamp: new Date().toISOString(),
+            eventType,
+            message,
+            userId,
+        };
+        await Backendless.Data.of('Logs').save(logData);
+    } catch (error) {
+        console.error('Failed to log event:', error);
+    }
+};
+
 const FileManager = () => {
     const [user, setUser] = useState(null);
     const [files, setFiles] = useState([]);
@@ -65,6 +79,7 @@ const FileManager = () => {
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to delete file:', error);
+            await logEvent('FILE_DELETE_ERROR', `Failed to delete file: ${fileName}`, user.objectId);
         }
     };
 
@@ -81,6 +96,7 @@ const FileManager = () => {
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to create folder:', error);
+            await logEvent('FOLDER_CREATE_ERROR', `Failed to create folder: ${newFolderName}`, user.objectId);
         }
     };
 
@@ -97,6 +113,7 @@ const FileManager = () => {
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to upload file:', error);
+            await logEvent('FILE_UPLOAD_ERROR', `Failed to upload file: ${file.name}`, user.objectId);
         }
     };
 
@@ -141,6 +158,7 @@ const FileManager = () => {
             alert('Файл успішно передано');
         } catch (error) {
             console.error('Failed to share file:', error);
+            await logEvent('FILE_SHARE_ERROR', `Failed to share file: ${fileToShare.name}`, user.objectId);
         } finally {
             handleCloseShareModal();
         }

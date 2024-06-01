@@ -1,7 +1,21 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import Backendless from 'backendless';
-import {Link} from "react-router-dom";
-import {useNavigate} from "react-router";
+import { Link } from "react-router-dom";
+import { useNavigate } from "react-router";
+
+const logEvent = async (eventType, message, userId = null) => {
+    try {
+        const logData = {
+            timestamp: new Date().toISOString(),
+            eventType,
+            message,
+            userId,
+        };
+        await Backendless.Data.of('Logs').save(logData);
+    } catch (error) {
+        console.error('Failed to log event:', error);
+    }
+};
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -27,16 +41,16 @@ const Login = () => {
             await loginUser(email, password);
             navigate('/after-login');
         } catch (error) {
+            await logEvent('LOGIN_ERROR', `Error logging in with email: ${email}`, email);
             setError(error.message || 'Щось пішло не так! Спробуйте пізніше!');
         } finally {
             setLoading(false);
         }
     };
 
-
     return (
         <div className="card bg-light">
-            <article className="card-body mx-auto" style={{maxWidth: 400}}>
+            <article className="card-body mx-auto" style={{ maxWidth: 400 }}>
                 <h4 className="card-title mt-3 text-center">Вхід в систему</h4>
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">

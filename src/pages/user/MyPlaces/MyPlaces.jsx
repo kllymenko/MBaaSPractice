@@ -4,7 +4,7 @@ import {Button} from 'react-bootstrap';
 import {Link} from "react-router-dom";
 import {format} from 'date-fns';
 import LeafletMapOnePlace from "../Map/LeafletMapOnePlace";
-import { getDistance } from 'geolib';
+import {getDistance} from 'geolib';
 
 const MyPlaces = () => {
     const [places, setPlaces] = useState([]);
@@ -21,12 +21,27 @@ const MyPlaces = () => {
     const [user, setUser] = useState(null);
     const [userLikes, setUserLikes] = useState([]);
     const [showMap, setShowMap] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [isCustomCategory, setIsCustomCategory] = useState(false);
 
 
     useEffect(() => {
         fetchUserPlaces();
         fetchUserLikes();
+        fetchUniqueCategories();
     }, []);
+
+
+    const fetchUniqueCategories = async () => {
+        try {
+            const allPlaces = await Backendless.Data.of('Place').find();
+            const uniqueCategories = [...new Set(allPlaces.map(place => place.category))];
+            setCategories(uniqueCategories);
+        } catch (error) {
+            console.error('Failed to fetch unique categories:', error);
+        }
+    };
+
 
     const fetchUserPlaces = async () => {
         try {
@@ -68,11 +83,13 @@ const MyPlaces = () => {
             return;
         }
         try {
+            let category = newPlace.category;
+
             if (selectedFile) {
                 const path = `/places-photos/${user.login}/${selectedFile.name}`;
                 const result = await Backendless.Files.upload(selectedFile, path);
                 const placeObject = ({
-                    category: newPlace.category,
+                    category,
                     coordinates: user.my_location,
                     description: newPlace.description,
                     hashtags: newPlace.hashtags,
@@ -87,11 +104,13 @@ const MyPlaces = () => {
                 });
                 setPhotoPath('');
                 fetchUserPlaces();
+                fetchUniqueCategories(); // Оновити список категорій
             }
         } catch (error) {
             console.error('Failed to add place:', error);
         }
     };
+
 
     const handleDeletePlace = async (placeId) => {
         if (!user) return;
@@ -198,14 +217,41 @@ const MyPlaces = () => {
                     onChange={handleInputChange}
                     placeholder="Хештеги"
                 />
-                <input
-                    type="text"
-                    className="form-control"
-                    name="category"
-                    value={newPlace.category}
-                    onChange={handleInputChange}
-                    placeholder="Категорія"
-                />
+                <div className="mb-3">
+                    <select
+                        className="form-control"
+                        name="category"
+                        value={newPlace.category}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === 'new') {
+                                setIsCustomCategory(true);
+                                setNewPlace(prevPlace => ({...prevPlace, category: ''}));
+                            } else {
+                                setIsCustomCategory(false);
+                                setNewPlace(prevPlace => ({...prevPlace, category: value}));
+                            }
+                        }}
+                    >
+                        <option value="">Виберіть категорію</option>
+                        {categories.map(category => (
+                            <option key={category} value={category}>{category}</option>
+                        ))}
+                        <option value="new">Додати нову категорію</option>
+                    </select>
+                </div>
+                {isCustomCategory && (
+                    <input
+                        type="text"
+                        className="form-control"
+                        name="category"
+                        value={newPlace.category}
+                        onChange={handleInputChange}
+                        placeholder="Нова категорія"
+                    />
+                )}
+
+
                 <div className="mb-3">
                     <label>Завантажити аватар</label>
                     <input
@@ -255,8 +301,8 @@ const MyPlaces = () => {
                             <p>
                                 Дистанція: {user.my_location ? (
                                 `${getDistance(
-                                    { latitude: user.my_location.y, longitude: user.my_location.x },
-                                    { latitude: place.coordinates.y, longitude: place.coordinates.x }
+                                    {latitude: user.my_location.y, longitude: user.my_location.x},
+                                    {latitude: place.coordinates.y, longitude: place.coordinates.x}
                                 )} м`
                             ) : 'Невідома'}
                             </p>
@@ -264,8 +310,9 @@ const MyPlaces = () => {
                         </div>
                         <div className="col-md-4 mb-3">
                             <div>
-                            <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити мапу</Button>
-                                {showMap === place.objectId && <LeafletMapOnePlace place={place} />}
+                                <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити
+                                    мапу</Button>
+                                {showMap === place.objectId && <LeafletMapOnePlace place={place}/>}
                             </div>
                             {!hasUserLiked(place.objectId) && (
                                 <Button variant="mt-2 btn-block" onClick={() => handleLikePlace(place)}>Лайк</Button>
@@ -283,17 +330,18 @@ const MyPlaces = () => {
                         </div>
                         <div className="col-md-4 mb-3">
                             <h5>{place.description}</h5>
-                            <p>{place.category}</p>
-                            <p>{place.hashtags}</p>
-                            <p>{format(new Date(place.created), 'dd.MM.yyyy')}</p>
+                            <p>Категорія: {place.category}</p>
+                            <p>Хештеги: {place.hashtags}</p>
+                            <p>Дата створення: {format(new Date(place.created), 'dd.MM.yyyy')}</p>
                             <p>Лайків: {place.likesCount}</p>
                         </div>
                         <div className="col-md-4 mb-3">
                             <Button className="mt-2 btn-block btn-danger"
                                     onClick={() => handleDeletePlace(place.objectId)}>Видалити</Button>
                             <div>
-                                <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити мапу</Button>
-                                {showMap === place.objectId && <LeafletMapOnePlace place={place} />}
+                                <Button className="mt-2 btn-block" onClick={() => openMap(place.objectId)}>Відкрити/Закрити
+                                    мапу</Button>
+                                {showMap === place.objectId && <LeafletMapOnePlace place={place}/>}
                             </div>
                         </div>
                     </React.Fragment>

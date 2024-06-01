@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Backendless from 'backendless';
-import { Alert } from 'react-bootstrap';
+import {Alert} from 'react-bootstrap';
+import {Link} from "react-router-dom";
 
 const FeedbackSection = () => {
     const [message, setMessage] = useState('');
     const [type, setType] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        fetchUser();
+    }, []);
+
+    const fetchUser = async () => {
+        try {
+            const currentUser = await Backendless.UserService.getCurrentUser(true);
+            setUser(currentUser);
+        } catch (error) {
+            console.error('Failed to fetch current user:', error);
+        }
+    };
 
     const handleSubmit = async () => {
         if (!message.trim() || !type) {
-            // Валідація: перевірка чи заповнені обов'язкові поля
             alert('Будь ласка, введіть повідомлення та виберіть тип.');
             return;
         }
@@ -17,11 +31,21 @@ const FeedbackSection = () => {
         const feedbackData = {
             message,
             type,
+            user: user?.login,
+            userEmail: user?.email,
         };
 
         try {
-            // Відправлення даних про зворотній зв'язок на сервер
             await Backendless.Data.of('Feedback').save(feedbackData);
+            const bodyParts = new Backendless.Bodyparts({
+                textmessage: `Тип: ${type}\n\nПовідомлення:\n${message}\n\nВід: ${user?.login} (${user?.email})`
+            });
+            await Backendless.Messaging.sendEmail(
+                `Новий ${type} від користувача: ${user?.login}`,
+                bodyParts,
+                ['developer@example.com']
+            );
+
             setSubmitted(true);
         } catch (error) {
             console.error('Помилка при відправленні зворотнього зв\'язку:', error);
@@ -37,7 +61,13 @@ const FeedbackSection = () => {
                 </Alert>
             ) : (
                 <div>
-                    <h3>Розробнику (або Feedback)</h3>
+                    <div className="d-flex justify-content-between mb-3">
+                        <Link to="/after-login">
+                            <button className="btn btn-primary">Попередня сторінка</button>
+                        </Link>
+                        <h2>Фідбек від користувача: ({user?.login})</h2>
+                    </div>
+                    <h3>Розробнику</h3>
                     <div className="form-group">
                         <label htmlFor="message">Повідомлення:</label>
                         <textarea
