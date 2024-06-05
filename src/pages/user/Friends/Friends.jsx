@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Backendless from 'backendless';
 import LeafletMapManyPlaces from "../Map/LeafletMapManyPlaces";
 import { Link } from "react-router-dom";
-import {Button} from "react-bootstrap";
+import { Button } from "react-bootstrap";
 
 const Friends = () => {
     const [friends, setFriends] = useState([]);
     const [friendRequests, setFriendRequests] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [radius, setRadius] = useState(1);
     const [user, setUser] = useState(null);
     const [sentRequests, setSentRequests] = useState([]);
 
@@ -19,7 +20,7 @@ const Friends = () => {
     }, []);
 
     const fetchFriends = async () => {
-        const currentUser = await Backendless.UserService.getCurrentUser();
+        const currentUser = await Backendless.UserService.getCurrentUser(true);
         setUser(currentUser);
         const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`userId = '${currentUser.objectId}'`);
         const userFriends = await Backendless.Data.of('Friends').find(queryBuilder);
@@ -39,10 +40,9 @@ const Friends = () => {
         const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`receiverId = '${currentUser.objectId}'`);
         const requests = await Backendless.Data.of('FriendRequests').find(queryBuilder);
 
-        // Fetch sender details for each request
         const requestsWithLogin = await Promise.all(requests.map(async request => {
             const sender = await Backendless.Data.of('Users').findById(request.ownerId);
-            return { ...request, senderLogin: sender.login }; // Include sender login
+            return { ...request, senderLogin: sender.login };
         }));
 
         setFriendRequests(requestsWithLogin);
@@ -71,13 +71,54 @@ const Friends = () => {
         setSearchTerm(event.target.value);
     };
 
+    const handleRadiusChange = (event) => {
+        const value = Math.max(1, event.target.value);
+        setRadius(value);
+    };
+
+    const calculateDistance = (coord1, coord2) => {
+        const toRad = (value) => (value * Math.PI) / 180;
+        const R = 6371;
+
+        const dLat = toRad(coord2.lat - coord1.lat);
+        const dLon = toRad(coord2.lon - coord1.lon);
+        const lat1 = toRad(coord1.lat);
+        const lat2 = toRad(coord2.lat);
+
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
     const handleSearch = async () => {
         const currentUser = await Backendless.UserService.getCurrentUser();
         const friendIds = friends.map(friend => friend.objectId);
         const whereClause = `login LIKE '%${searchTerm}%' AND location_access = true AND objectId != '${currentUser.objectId}' AND objectId NOT IN ('${friendIds.join("','")}')`;
         const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(whereClause);
         const results = await Backendless.Data.of('Users').find(queryBuilder);
-        setSearchResults(results);
+
+        if (currentUser.my_location && radius > 0) {
+            const userLocation = {
+                lat: currentUser.my_location.y,
+                lon: currentUser.my_location.x
+            };
+
+            const filteredResults = results.filter(result => {
+                if (result.my_location) {
+                    const friendLocation = {
+                        lat: result.my_location.y,
+                        lon: result.my_location.x
+                    };
+                    return calculateDistance(userLocation, friendLocation) <= radius;
+                }
+                return false;
+            });
+
+            setSearchResults(filteredResults);
+        } else {
+            setSearchResults(results);
+        }
     };
 
     const handleAddFriend = async (friendId) => {
@@ -98,7 +139,6 @@ const Friends = () => {
         await Backendless.Data.of('Friends').save(friend1);
         await Backendless.Data.of('Friends').save(friend2);
 
-        // Видалення запиту на дружбу після прийняття
         const queryBuilder = Backendless.DataQueryBuilder.create().setWhereClause(`ownerId = '${senderId}' AND receiverId = '${currentUser.objectId}'`);
         const friendRequests = await Backendless.Data.of('FriendRequests').find(queryBuilder);
         for (let request of friendRequests) {
@@ -120,7 +160,6 @@ const Friends = () => {
             await Backendless.Data.of('Friends').remove(friend);
         }
 
-        // Оновлення списку друзів після видалення
         setFriends(friends.filter(friend => friend.objectId !== friendId));
     };
 
@@ -151,7 +190,9 @@ const Friends = () => {
                     </li>
                 ))}
             </ul>
-            <FriendsMap friends={friends.filter(friend => friend.location_access)} />
+            {user?.my_location && (
+                <FriendsMap friends={friends} userLocation={user.my_location} radius={radius} />
+            )}
 
             <h3>Запити в друзі</h3>
             <ul className="list-group mb-4">
@@ -166,6 +207,7 @@ const Friends = () => {
             <h3>Знайти друзів</h3>
             <div className="input-group mb-3">
                 <input type="text" className="form-control" value={searchTerm} onChange={handleSearchChange} placeholder="Пошук за логіном" />
+                <input type="number" className="form-control" value={radius} onChange={handleRadiusChange} placeholder="Радіус (км)" min="1" />
                 <div className="input-group-append">
                     <Button className="btn btn-primary" onClick={handleSearch}>Знайти</Button>
                 </div>
@@ -185,12 +227,13 @@ const Friends = () => {
     );
 };
 
-const FriendsMap = ({ friends }) => {
+const FriendsMap = ({ friends, userLocation, radius }) => {
     return (
-        <LeafletMapManyPlaces places={friends.map(friend => ({
-            coordinates: friend.my_location,
-            description: friend.login,
-        }))} />
+        <LeafletMapManyPlaces
+            friends={friends}
+            userLocation={userLocation}
+            radius={radius}
+        />
     );
 };
 

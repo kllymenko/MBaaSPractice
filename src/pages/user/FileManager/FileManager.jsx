@@ -15,6 +15,7 @@ const FileManager = () => {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [fileToShare, setFileToShare] = useState('');
     const navigate = useNavigate();
+    const logger = Backendless.Logging.getLogger('ua.mbaas.FileLogger');
 
     useEffect(() => {
         Backendless.UserService.getCurrentUser()
@@ -65,6 +66,7 @@ const FileManager = () => {
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to delete file:', error);
+            logger.error(`Failed to delete file: ${error.message}`);
         }
     };
 
@@ -81,6 +83,7 @@ const FileManager = () => {
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to create folder:', error);
+            logger.error(`Failed to create folder: ${error.message}`);
         }
     };
 
@@ -97,6 +100,7 @@ const FileManager = () => {
             await fetchFiles(currentDir);
         } catch (error) {
             console.error('Failed to upload file:', error);
+            logger.error(`Failed to upload file: ${error.message}`);
         }
     };
 
@@ -141,6 +145,7 @@ const FileManager = () => {
             alert('Файл успішно передано');
         } catch (error) {
             console.error('Failed to share file:', error);
+            logger.error(`Failed to share file: ${error.message}`);
         } finally {
             handleCloseShareModal();
         }

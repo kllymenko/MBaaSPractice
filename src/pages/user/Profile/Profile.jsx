@@ -17,6 +17,7 @@ const Profile = () => {
     const [initialLogin, setInitialLogin] = useState('');
     const [trackLocation, setTrackLocation] = useState(false);
     const navigate = useNavigate();
+    const logger = Backendless.Logging.getLogger('ua.mbaas.LocationLogger');
 
     useEffect(() => {
         fetchUserProfile();
@@ -72,9 +73,11 @@ const Profile = () => {
                     await Backendless.UserService.update(updatedUser);
                 } catch (error) {
                     console.error('Failed to update user location:', error);
+                    logger.error(`Failed to update user location: ${error.message}`);
                 }
             }, (error) => {
                 console.error('Failed to get geolocation:', error);
+                logger.error(`Failed to get geolocation: ${error.message}`);
             });
         } else {
             console.error('Geolocation is not supported by this browser.');

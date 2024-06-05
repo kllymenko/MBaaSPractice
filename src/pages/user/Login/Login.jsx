@@ -10,11 +10,13 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
+    const logger = Backendless.Logging.getLogger('ua.mbaas.AuthLogger');
 
     const loginUser = async (email, password) => {
         try {
             return await Backendless.UserService.login(email, password, true);
         } catch (error) {
+            logger.error(`Login failed for user with email ${email}: ${error.message}`);
             throw error;
         }
     };

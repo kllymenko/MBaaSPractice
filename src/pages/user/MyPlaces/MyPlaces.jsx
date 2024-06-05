@@ -104,7 +104,7 @@ const MyPlaces = () => {
                 });
                 setPhotoPath('');
                 fetchUserPlaces();
-                fetchUniqueCategories(); // Оновити список категорій
+                fetchUniqueCategories();
             }
         } catch (error) {
             console.error('Failed to add place:', error);
@@ -155,8 +155,6 @@ const MyPlaces = () => {
                 placeId: currentPlace.objectId,
             };
             await Backendless.Data.of('Likes').save(likeObject);
-
-            // Update likes count
             const place = await Backendless.Data.of('Place').findById(currentPlace.objectId);
             currentPlace.likesCount += 1;
             await Backendless.Data.of('Place').save(currentPlace);
