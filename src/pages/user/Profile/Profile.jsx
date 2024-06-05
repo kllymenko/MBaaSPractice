@@ -3,20 +3,6 @@ import Backendless from 'backendless';
 import { useNavigate } from 'react-router';
 import { Link } from 'react-router-dom';
 
-const logEvent = async (eventType, message, userId = null) => {
-    try {
-        const logData = {
-            timestamp: new Date().toISOString(),
-            eventType,
-            message,
-            userId,
-        };
-        await Backendless.Data.of('Logs').save(logData);
-    } catch (error) {
-        console.error('Failed to log event:', error);
-    }
-};
-
 const Profile = () => {
     const [user, setUser] = useState(null);
     const [avatarPath, setAvatarPath] = useState('');
@@ -86,15 +72,12 @@ const Profile = () => {
                     await Backendless.UserService.update(updatedUser);
                 } catch (error) {
                     console.error('Failed to update user location:', error);
-                    await logEvent('UPDATE_LOCATION_ERROR', `Failed to update user location: ${error.message}`, user.objectId);
                 }
             }, (error) => {
                 console.error('Failed to get geolocation:', error);
-                logEvent('GET_GEOLOCATION_ERROR', `Failed to get geolocation: ${error.message}`, user.objectId);
             });
         } else {
             console.error('Geolocation is not supported by this browser.');
-            await logEvent('GEOLOCATION_NOT_SUPPORTED_ERROR', 'Geolocation is not supported by this browser.', user.objectId);
         }
     };
 
@@ -138,7 +121,6 @@ const Profile = () => {
             await fetchUserProfile();
         } catch (error) {
             console.error('Failed to update profile:', error);
-            await logEvent('PROFILE_UPDATE_ERROR', `Failed to update profile: ${error.message}`, user.objectId);
         }
     };
 
