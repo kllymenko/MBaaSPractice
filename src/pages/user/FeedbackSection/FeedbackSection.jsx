@@ -41,9 +41,9 @@ const FeedbackSection = () => {
                 textmessage: `Тип: ${type}\n\nПовідомлення:\n${message}\n\nВід: ${user?.login} (${user?.email})`
             });
             await Backendless.Messaging.sendEmail(
-                `Новий ${type} від користувача: ${user?.login}`,
+                `Feedback`,
                 bodyParts,
-                ['developer@example.com']
+                ['alexklimovv2@gmail.com']
             );
 
             setSubmitted(true);
@@ -58,6 +58,9 @@ const FeedbackSection = () => {
             {submitted ? (
                 <Alert variant="success">
                     Ваше повідомлення успішно відправлено!
+                    <Link to="/after-login">
+                        <button className="btn btn-primary">Попередня сторінка</button>
+                    </Link>
                 </Alert>
             ) : (
                 <div>
